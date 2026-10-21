@@ -62,7 +62,7 @@
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <span class="text-slate-300">
-            1 SAR = <strong id="live-rate-text" class="text-emerald-400 font-bold">₹25.20</strong>
+            1 SAR = <strong id="live-rate-text" class="text-emerald-400 font-bold">₹25.33</strong>
           </span>
           <span id="rate-time-text" class="text-slate-500 text-[10px]">(Live)</span>
         </div>
@@ -134,7 +134,7 @@
       <div>
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Bill Deadlines</h3>
-          <button onclick="switchTab('bills')" class="text-xs text-indigo-400 font-semibold">View All →</button>
+          <button onclick="openBillModal()" class="text-xs font-bold text-indigo-400 hover:text-indigo-300">+ Add Bill</button>
         </div>
         <div id="dashboard-bills-list" class="space-y-2"></div>
       </div>
@@ -154,7 +154,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-bold text-white">Monthly Bills & Due Dates</h2>
-          <p class="text-xs text-slate-400">Tap checkmark to mark paid/unpaid</p>
+          <p class="text-xs text-slate-400">Tap check to mark paid • Tap 🗑️ to delete</p>
         </div>
         <button onclick="openBillModal()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white">
           + Add Bill
@@ -192,9 +192,17 @@
       
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
         <span class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Live Forex Rate</span>
-        <p class="text-sm font-semibold text-white">1 SAR = <span id="settings-rate-display">₹25.20</span> INR</p>
+        <p class="text-sm font-semibold text-white">1 SAR = <span id="settings-rate-display">₹25.33</span> INR</p>
         <button onclick="fetchLiveForexRate()" class="w-full py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white">
           Fetch Live Rate Now
+        </button>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <span class="text-xs font-bold text-rose-400 uppercase tracking-wider">Clean Slate</span>
+        <p class="text-xs text-slate-400">Clear all sample data and start completely fresh.</p>
+        <button onclick="clearAllBills()" class="w-full py-2 text-xs font-bold rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40">
+          🗑️ Delete All Default Bills
         </button>
       </div>
 
@@ -304,7 +312,7 @@
       <form onsubmit="handleSaveBill(event)" class="space-y-3">
         <div>
           <label class="text-xs text-slate-400 block mb-1">Bill Name</label>
-          <input id="bill-title" required placeholder="e.g. Apartment Rent, STC Wi-Fi" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          <input id="bill-title" required placeholder="e.g. Electricity, Internet, Gym" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
@@ -370,17 +378,10 @@
     // Core Data Schema
     let appData = {
       salary: { amount: 6000, currency: 'SAR', payday: 27 },
-      exchangeRate: 25.20,
-      bills: [
-        { id: 'b1', title: 'Apartment Rent', amount: 1600, currency: 'SAR', dueDay: 1 },
-        { id: 'b2', title: 'STC Fiber Wi-Fi', amount: 287, currency: 'SAR', dueDay: 15 },
-        { id: 'b3', title: 'India Loan EMI', amount: 22000, currency: 'INR', dueDay: 5 }
-      ],
+      exchangeRate: 25.33,
+      bills: [],
       billPaidStatus: {},
-      expenses: [
-        { id: 'e1', title: 'Panda Market Grocery', amount: 240, currency: 'SAR', date: '2026-10-05', category: 'Groceries & Food' },
-        { id: 'e2', title: 'SBI Remittance', amount: 45000, currency: 'INR', date: '2026-10-10', category: 'Remittance / India Support' }
-      ]
+      expenses: []
     };
 
     let displayCurrency = 'SAR';
@@ -391,17 +392,48 @@
     // Load LocalStorage
     try {
       const saved = localStorage.getItem('dans_xpense_data');
-      if (saved) appData = JSON.parse(saved);
+      if (saved) {
+        appData = JSON.parse(saved);
+      }
       const savedRate = localStorage.getItem('dans_xpense_rate');
       if (savedRate) appData.exchangeRate = parseFloat(savedRate);
     } catch (e) {
-      console.log('Using default dataset');
+      console.log('Using fresh dataset');
     }
 
     function saveData() {
       localStorage.setItem('dans_xpense_data', JSON.stringify(appData));
       localStorage.setItem('dans_xpense_rate', appData.exchangeRate.toString());
       renderApp();
+    }
+
+    // Delete single bill function
+    function deleteBill(billId, event) {
+      if (event) event.stopPropagation();
+      if (!confirm('Are you sure you want to remove this bill?')) return;
+      appData.bills = appData.bills.filter(b => b.id !== billId);
+      // clean up status keys
+      Object.keys(appData.billPaidStatus).forEach(key => {
+        if (key.startsWith(billId + '_')) delete appData.billPaidStatus[key];
+      });
+      saveData();
+    }
+
+    // Clear all sample bills button
+    function clearAllBills() {
+      if (!confirm('Remove all bills currently in the list?')) return;
+      appData.bills = [];
+      appData.billPaidStatus = {};
+      saveData();
+      alert('All bills have been removed! You can now add your own.');
+    }
+
+    // Delete single expense function
+    function deleteExpense(expId, event) {
+      if (event) event.stopPropagation();
+      if (!confirm('Delete this expense?')) return;
+      appData.expenses = appData.expenses.filter(e => e.id !== expId);
+      saveData();
     }
 
     // Currency Conversion Helpers
@@ -636,15 +668,20 @@
                 <p class="text-[11px] text-slate-400">Due ${b.dueDay}th • ${b.amount} ${b.currency} (~${format(convert(b.amount, b.currency, displayCurrency))})</p>
               </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${isPaid ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}">
-              ${isPaid ? 'Paid ✓' : 'Due ' + b.dueDay + 'th'}
-            </span>
+            <div class="flex items-center space-x-2">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${isPaid ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}">
+                ${isPaid ? 'Paid ✓' : 'Due ' + b.dueDay + 'th'}
+              </span>
+              <button onclick="deleteBill('${b.id}', event)" class="p-1 rounded text-slate-500 hover:text-rose-400 active:scale-95 text-xs">
+                🗑️
+              </button>
+            </div>
           </div>
         `;
       }).join('');
 
-      document.getElementById('dashboard-bills-list').innerHTML = billsHtml || '<p class="text-xs text-slate-500">No bills added.</p>';
-      document.getElementById('full-bills-list').innerHTML = billsHtml;
+      document.getElementById('dashboard-bills-list').innerHTML = billsHtml || '<p class="text-xs text-slate-500 py-3 text-center border border-dashed border-slate-800 rounded-xl">No bills scheduled. Tap "+ Add Bill" to create one.</p>';
+      document.getElementById('full-bills-list').innerHTML = billsHtml || '<p class="text-xs text-slate-500 py-3 text-center border border-dashed border-slate-800 rounded-xl">No bills scheduled. Tap "+ Add Bill" to create one.</p>';
 
       // Render Expenses
       const expHtml = monthExpenses.map(e => `
@@ -653,9 +690,14 @@
             <p class="text-sm font-semibold text-slate-100">${e.title}</p>
             <p class="text-[11px] text-slate-400">${e.date} • ${e.category}</p>
           </div>
-          <div class="text-right">
-            <p class="text-sm font-bold text-white">${e.amount} ${e.currency}</p>
-            <p class="text-[10px] text-slate-400">~${format(convert(e.amount, e.currency, displayCurrency))}</p>
+          <div class="flex items-center space-x-3">
+            <div class="text-right">
+              <p class="text-sm font-bold text-white">${e.amount} ${e.currency}</p>
+              <p class="text-[10px] text-slate-400">~${format(convert(e.amount, e.currency, displayCurrency))}</p>
+            </div>
+            <button onclick="deleteExpense('${e.id}', event)" class="p-1 text-slate-500 hover:text-rose-400 active:scale-95 text-xs">
+              🗑️
+            </button>
           </div>
         </div>
       `).join('');
